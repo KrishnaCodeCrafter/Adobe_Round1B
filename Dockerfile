@@ -1,26 +1,25 @@
-FROM python:3.9-slim-buster AS builder
+# Use official slim Python base for AMD64 architecture
+FROM --platform=linux/amd64 python:3.10-slim
+
+# Set working directory in the container
 WORKDIR /app
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    libharfbuzz-dev \
-    libfreetype6-dev \
-    libfontconfig1 \
-    libjpeg-dev \
-    zlib1g-dev \
-    build-essential && \
-    rm -rf /var/lib/apt/lists/*
+# Install system dependencies for PDF parsing and font rendering
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    poppler-utils \
+    libgl1 \
+    && rm -rf /var/lib/apt/lists/*
 
+# Install Python dependencies
 COPY requirements.txt .
-
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN mkdir -p /app/models/all-MiniLM-L6-v2 && \
-    python -c "from sentence_transformers import SentenceTransformer; model_name='all-MiniLM-L6-v2'; model = SentenceTransformer(model_name); model.save_pretrained(f'/app/models/{model_name}')"
+# Copy all project files into the container
+COPY . .
 
-COPY main_round1b.py .
-COPY pdf_parser.py .
+# Pre-create model directory (used for caching sentence-transformers)
+RUN mkdir -p /app/models
 
-RUN mkdir -p input output
-
+# Entry point for Adobe Round 1B
 CMD ["python", "main_round1b.py"]
